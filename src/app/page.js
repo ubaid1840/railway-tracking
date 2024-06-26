@@ -1,95 +1,178 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'
+
+import { useState, useRef, useEffect } from "react";
+import { Box, Button, Heading, VStack, Text, HStack, Stack, useToast, Image as ChakraImage } from "@chakra-ui/react";
+import { useRouter } from 'next/navigation';
+import Webcam from "react-webcam";
+import axios from "axios";
+import { addDoc, collection, doc } from "firebase/firestore";
+import { auth, db } from "@/config/firebase";
+import LoadingIndicator from "@/components/loadingIndicator";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function Home() {
+  const [picture, setPicture] = useState(null);
+  const [cameraMode, setCameraMode] = useState(false);
+  const webcamRef = useRef(null);
+  const toast = useToast();
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setLoggedIn(true)
+      } else {
+        setLoading(false);
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleFileChange = (e) => {
+    setPicture(e.target.files[0]);
+  };
+
+  const handleCameraCapture = () => {
+    const imageSrc = webcamRef.current.getScreenshot();
+    fetch(imageSrc)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], "capture.png", { type: "image/png" });
+        setPicture(file);
+        setCameraMode(false);
+      });
+  };
+
+  const handleSubmit = async () => {
+    try {
+     
+      await axios.post('/api/verify', formData)
+      .then(async()=>{
+        const formData = new FormData();
+        formData.append('picture', picture);
+        const date = new Date()
+        await addDoc(collection(db, 'Data'), {
+          email: 'ubaid@gmail.com',
+          timeStamp: date.getTime()
+        })
+          .then(() => {
+            
+      toast({
+        title: "Submitted.",
+        description: "Your image has been submitted successfully.",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+            setPicture(null)
+          })
+      })
+     
+    } catch (error) {
+      toast({
+        title: "Submission failed.",
+        description: "Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false)
+    }
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
+    <Box
+      w="100vw"
+      h="100vh"
+      display="flex"
+      flexDirection="column"
+      bg="gray.900"
+      bgImage="/image4.jpg"
+      bgRepeat="no-repeat"
+      bgSize="cover"
+      bgPosition="center"
+      alignItems="center"
+
+    >
+      <HStack w="100%" justifyContent="flex-end" p={4} >
+        {loggedIn
+          ? <Button colorScheme="blue" size="sm" onClick={() => router.push('/dashboard')}>Dashboard</Button>
+          :
+          <Button colorScheme="blue" size="sm" onClick={() => router.push('/login')}>Login</Button>
+        }
+
+        <Button colorScheme="blue" size="sm" onClick={() => router.push('/signup')}>Signup</Button>
+      </HStack>
+
+      <VStack
+        spacing={6}
+        boxShadow="lg"
+        p={8}
+        bg="rgba(0, 0, 0, 0.6)"
+        borderRadius="xl"
+        w="90%"
+        maxW="lg"
+        textAlign="center"
+        alignSelf={'center'}
+      >
+        <Heading size="lg" color="orange.300">Railway Tracking System</Heading>
+        <Text fontSize="md" color="gray.400">A modern way to track fares using facial recognition.</Text>
+
+        {!cameraMode && (
+          <Stack spacing={4} alignItems="center">
+            <Text fontSize="sm" color="white">Select a picture to recognize or use your camera</Text>
+            <HStack spacing={4}>
+              <Button as="label" colorScheme="blue" size="md">
+                Select Picture
+                <input type="file" accept="image/*" hidden onChange={handleFileChange} />
+              </Button>
+              <Button colorScheme="blue" size="md" onClick={() => setCameraMode(true)}>Use Camera</Button>
+            </HStack>
+          </Stack>
+        )}
+
+        {cameraMode && (
+          <VStack spacing={4} alignItems="center">
+            <Webcam
+              audio={false}
+              ref={webcamRef}
+              screenshotFormat="image/png"
+              width={320}
+              height={240}
+              videoConstraints={{ facingMode: "user" }}
             />
-          </a>
-        </div>
-      </div>
+            <HStack spacing={4}>
+              <Button colorScheme="green" size="md" onClick={handleCameraCapture}>Capture</Button>
+              <Button colorScheme="red" size="md" onClick={() => setCameraMode(false)}>Cancel</Button>
+            </HStack>
+          </VStack>
+        )}
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        {picture && (
+          <Box>
+            <Text fontSize="sm" color="white">Selected Image:</Text>
+            <ChakraImage
+              src={URL.createObjectURL(picture)}
+              alt="Selected"
+              boxSize="200px"
+              objectFit="cover"
+              borderRadius="md"
+              mt={2}
+            />
+          </Box>
+        )}
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+        <Button onClick={() => {
+          setLoading(true)
+          handleSubmit()
+        }} colorScheme="blue" size="md" isDisabled={!picture}>Submit</Button>
+      </VStack>
+      {loading ? <LoadingIndicator /> : null}
+    </Box>
   );
 }
