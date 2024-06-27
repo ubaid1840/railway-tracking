@@ -23,7 +23,8 @@ import {
   updateProfile,
 } from "firebase/auth";
 import LoadingIndicator from "@/components/loadingIndicator";
-import { auth } from "@/config/firebase";
+import { auth, db } from "@/config/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -66,33 +67,41 @@ export default function Signup() {
       });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async () => {
+    setLoading(true)
     try {
       const formData = new FormData();
-      formData.append("name", name);
-      formData.append("email", email);
-      if (picture) {
-        formData.append("picture", picture);
-      }
-     
-        await axios.post("/api/signup", formData).then((response) => {
-            createUserWithEmailAndPassword(auth, email, password).then(
-                (userCredential) => {
-                  const user = userCredential.user;
-                  updateProfile(user, {
-                    displayName: name,
-                  }).then(() => {
-                    setSignupComplete(true);
-                    toast({
-                      title: "Signup successful.",
-                      description: "Your account has been created successfully.",
-                      status: "success",
-                      duration: 5000,
-                      isClosable: true,
-                    });
-                  });
-                }
-              );
+      formData.append("username", email);
+      formData.append("image", picture);
+      await axios
+        .post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/signup`, formData, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+        })
+        .then((response) => {
+          createUserWithEmailAndPassword(auth, email, password).then(
+            async (userCredential) => {
+              await setDoc(doc(db, "Users", email), {
+                email: email,
+                name: name,
+                wallet: 5000,
+              });
+              const user = userCredential.user;
+              updateProfile(user, {
+                displayName: name,
+              }).then(() => {
+                setSignupComplete(true);
+                toast({
+                  title: "Signup successful.",
+                  description: "Your account has been created successfully.",
+                  status: "success",
+                  duration: 5000,
+                  isClosable: true,
+                });
+              });
+            }
+          );
         });
     } catch (error) {
       toast({
@@ -102,6 +111,8 @@ export default function Signup() {
         duration: 5000,
         isClosable: true,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,7 +130,13 @@ export default function Signup() {
           Home
         </Button>
       </HStack>
-      <Stack spacing={8} w="100%" justifyContent="center" alignItems={'center'} flexDirection={{base : 'column', md : 'row',}}>
+      <Stack
+        spacing={8}
+        w="100%"
+        justifyContent="center"
+        alignItems={"center"}
+        flexDirection={{ base: "column", md: "row" }}
+      >
         <VStack
           spacing={8}
           boxShadow="2xl"
@@ -211,7 +228,7 @@ export default function Signup() {
           maxW="md"
           textAlign="center"
           mt={8}
-          justifyContent={'center'}
+          justifyContent={"center"}
         >
           {!cameraMode && (
             <Stack spacing={4} alignItems="center">
@@ -219,7 +236,7 @@ export default function Signup() {
                 Select a picture to upload or use your camera
               </Text>
               <HStack spacing={4}>
-                <Button  colorScheme="blue" size="md">
+                <Button colorScheme="blue" size="md">
                   Select Picture
                   <input
                     type="file"

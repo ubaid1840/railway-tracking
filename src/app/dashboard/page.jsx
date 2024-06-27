@@ -15,13 +15,15 @@ import {
   useToast,
   ChakraProvider,
   HStack,
+  Stack,
 } from "@chakra-ui/react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db } from "@/config/firebase";
 import { useRouter } from "next/navigation";
 import LoadingIndicator from "@/components/loadingIndicator";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import moment from "moment";
+import WalletCard from "@/components/wallet";
 
 export default function Dashboard() {
   const [userData, setUserData] = useState([]);
@@ -29,6 +31,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
+  const [walletAmount, setWalletAmount] = useState(0)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -52,6 +55,12 @@ export default function Dashboard() {
   async function fetchUserData() {
     try {
       let list = [];
+      
+      await getDoc(doc(db, 'Users', email))
+      .then((docs)=>{
+        setWalletAmount(docs.data().wallet)
+      })
+
       await getDocs(
         query(collection(db, "Data"), where("email", "==", email))
       ).then((snapshot) => {
@@ -60,28 +69,8 @@ export default function Dashboard() {
         });
       });
       const sortedData = list.sort((a, b) => a.timeStamp - b.timeStamp);
-      const updatedArray = [];
-      for (let i = 0; i < sortedData.length - 1; i += 2) {
-        const startTimeObject = sortedData[i];
-        const endTimeObject = sortedData[i + 1];
-
-        const newObject = {
-          startTime: startTimeObject.timeStamp,
-          endTime: endTimeObject ? endTimeObject.timeStamp : null,
-        };
-
-        updatedArray.push(newObject);
-      }
-      if (sortedData.length % 2 !== 0) {
-        const lastObject = sortedData[sortedData.length - 1];
-        const lastObjectEntry = {
-          startTime: lastObject.timeStamp,
-          endTime: "",
-        };
-        updatedArray.push(lastObjectEntry);
-      }
-      updatedArray.reverse()
-      setUserData(updatedArray);
+  
+      setUserData(sortedData.reverse());
     } catch (error) {
       toast({
         title: "Failed to fetch data.",
@@ -101,16 +90,6 @@ export default function Dashboard() {
     });
   }
 
-  function calculateFare(start, end) {
-    if (!end) {
-      return "";
-    } else {
-      const difference = end - start;
-      const inMinutes = difference / 60000;
-      return inMinutes.toFixed(0) * process.env.NEXT_PUBLIC_FARE;
-    }
-  }
-
   return (
     <Box
       w="100%"
@@ -128,20 +107,24 @@ export default function Dashboard() {
           Logout
         </Button>
       </HStack>
+      <Stack alignItems={'flex-end'} width={'100%'} px={4} mb={5}>
+      <WalletCard amount={walletAmount} />
+      </Stack>
       <VStack
         spacing={8}
         boxShadow="2xl"
         p={8}
         bg="gray.800"
         borderRadius="xl"
-        w={{sm : '100%', md : '90%', lg : '80%' }}
+        w={{ sm: "100%", md: "90%", lg: "80%" }}
         textAlign="center"
-        overflowX={'auto'}
+        overflowX={"auto"}
       >
-        <Heading size="lg" color="teal.300">
+
+        <Heading size="lg" color="orange.300">
           Dashboard
         </Heading>
-        <Table variant="simple" colorScheme="teal" size="md" minWidth={'100%'}>
+        <Table variant="simple" colorScheme="teal" size="md" minWidth={"100%"}>
           <Thead>
             <Tr>
               <Th>Date</Th>
@@ -155,8 +138,12 @@ export default function Dashboard() {
               <Tr key={index}>
                 <Td>{moment(new Date(user?.startTime)).format("LL")}</Td>
                 <Td>{moment(new Date(user?.startTime)).format("LT")}</Td>
-                <Td>{user.endTime ? moment(new Date(user?.endTime)).format("LT") : ""}</Td>
-                <Td>{calculateFare(user.startTime, user.endTime)}</Td>
+                <Td>
+                  {user.endTime
+                    ? moment(new Date(user?.endTime)).format("LT")
+                    : ""}
+                </Td>
+                <Td>{user?.fare}</Td>
               </Tr>
             ))}
           </Tbody>
