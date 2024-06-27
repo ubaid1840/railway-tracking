@@ -24,6 +24,4 @@ Run the build:
 npx serve@latest out
 ```
 
-## Rename .env.example to .env
-### Replace <Per minute fare amount> with your actual amount
-### Replace <Your backendend URL> with your actual backend URL
+### Rename .env.example to .env and replace fare and backend URL with actual.
