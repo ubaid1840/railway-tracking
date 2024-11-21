@@ -3,12 +3,12 @@ import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBWn8c0M720lkYXMXUOJHDQIDQop62UM8A",
-    authDomain: "railway-facial-tracking.firebaseapp.com",
-    projectId: "railway-facial-tracking",
-    storageBucket: "railway-facial-tracking.appspot.com",
-    messagingSenderId: "413502630264",
-    appId: "1:413502630264:web:c4b4249d43ecdfbd5ac08d"
+    apiKey: "AIzaSyBTfo1RILh_9BcsJxndfgrnKDOcYISoBzc",
+  authDomain: "railway-tracking-aa884.firebaseapp.com",
+  projectId: "railway-tracking-aa884",
+  storageBucket: "railway-tracking-aa884.firebasestorage.app",
+  messagingSenderId: "586688207303",
+  appId: "1:586688207303:web:a31a0c82b4bb4a53b561e2"
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app)

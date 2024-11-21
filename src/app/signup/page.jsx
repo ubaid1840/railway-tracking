@@ -37,6 +37,7 @@ export default function Signup() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [signupComplete, setSignupComplete] = useState(true);
+  const inputRef = useRef();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -68,8 +69,8 @@ export default function Signup() {
   };
 
   const handleSubmit = async () => {
-    setLoading(true)
     try {
+      setLoading(true);
       const formData = new FormData();
       formData.append("username", email);
       formData.append("image", picture);
@@ -104,6 +105,7 @@ export default function Signup() {
           );
         });
     } catch (error) {
+      setLoading(false);
       toast({
         title: "Signup failed.",
         description: "Please try again.",
@@ -111,8 +113,6 @@ export default function Signup() {
         duration: 5000,
         isClosable: true,
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -192,7 +192,7 @@ export default function Signup() {
           />
           <Button
             onClick={() => {
-              setLoading(true);
+             
               handleSubmit();
             }}
             colorScheme="blue"
@@ -236,15 +236,21 @@ export default function Signup() {
                 Select a picture to upload or use your camera
               </Text>
               <HStack spacing={4}>
-                <Button colorScheme="blue" size="md">
+                <Button
+                  onClick={() => inputRef?.current?.click()}
+                  colorScheme="blue"
+                  size="md"
+                >
                   Select Picture
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={handleFileChange}
-                  />
                 </Button>
+                <input
+                  style={{ display: "none" }}
+                  ref={inputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={handleFileChange}
+                />
                 <Button
                   colorScheme="blue"
                   size="md"
@@ -302,7 +308,6 @@ export default function Signup() {
           )}
         </VStack>
       </Stack>
-
       {loading ? <LoadingIndicator /> : null}
     </Box>
   );

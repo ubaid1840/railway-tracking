@@ -69,7 +69,7 @@ export default function Dashboard() {
         });
       });
       const sortedData = list.sort((a, b) => a.timeStamp - b.timeStamp);
-  
+      
       setUserData(sortedData.reverse());
     } catch (error) {
       toast({
@@ -128,22 +128,18 @@ export default function Dashboard() {
           <Thead>
             <Tr>
               <Th>Date</Th>
-              <Th>Start Time</Th>
-              <Th>End Time</Th>
+              <Th>Boarding</Th>
+              <Th>Destination</Th>
               <Th>Fare</Th>
             </Tr>
           </Thead>
           <Tbody>
             {userData.map((user, index) => (
               <Tr key={index}>
-                <Td>{moment(new Date(user?.startTime)).format("LL")}</Td>
-                <Td>{moment(new Date(user?.startTime)).format("LT")}</Td>
-                <Td>
-                  {user.endTime
-                    ? moment(new Date(user?.endTime)).format("LT")
-                    : ""}
-                </Td>
-                <Td>{user?.fare}</Td>
+                <Td>{moment(user.timestamp).format("LL")}</Td>
+                <Td>{user.start}</Td>
+                <Td>{user?.end || ""}</Td>
+                <Td>{user?.fare || ""}</Td>
               </Tr>
             ))}
           </Tbody>
