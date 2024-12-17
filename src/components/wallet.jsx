@@ -1,7 +1,7 @@
 import React from 'react';
-import { Box, Text, VStack, Heading } from '@chakra-ui/react';
+import { Box, Text, VStack, Heading, Button } from '@chakra-ui/react';
 
-const WalletCard = ({ amount }) => {
+const WalletCard = ({ amount, onClick }) => {
   return (
     <Box
       bg="gray.800"
@@ -19,6 +19,9 @@ const WalletCard = ({ amount }) => {
         <Text fontSize="2xl" fontWeight="bold" color="white">
           ${amount.toFixed(2)}
         </Text>
+        <Button colorScheme='purple' rounded={'md'} onClick={onClick}>
+          Recharge
+        </Button>
       </VStack>
     </Box>
   );

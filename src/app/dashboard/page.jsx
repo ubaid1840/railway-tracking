@@ -16,12 +16,29 @@ import {
   ChakraProvider,
   HStack,
   Stack,
+  useDisclosure,
+  Modal,
+  ModalHeader,
+  ModalContent,
+  ModalCloseButton,
+  ModalBody,
+  Input,
+  ModalFooter,
+  ModalOverlay,
 } from "@chakra-ui/react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db } from "@/config/firebase";
 import { useRouter } from "next/navigation";
 import LoadingIndicator from "@/components/loadingIndicator";
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import moment from "moment";
 import WalletCard from "@/components/wallet";
 
@@ -31,7 +48,9 @@ export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
-  const [walletAmount, setWalletAmount] = useState(0)
+  const [walletAmount, setWalletAmount] = useState(0);
+  const { isOpen, onClose, onOpen } = useDisclosure();
+  const [newAmount, setNewAmount] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -55,11 +74,10 @@ export default function Dashboard() {
   async function fetchUserData() {
     try {
       let list = [];
-      
-      await getDoc(doc(db, 'Users', email))
-      .then((docs)=>{
-        setWalletAmount(docs.data().wallet)
-      })
+
+      await getDoc(doc(db, "Users", email)).then((docs) => {
+        setWalletAmount(docs.data().wallet);
+      });
 
       await getDocs(
         query(collection(db, "Data"), where("email", "==", email))
@@ -69,7 +87,7 @@ export default function Dashboard() {
         });
       });
       const sortedData = list.sort((a, b) => a.timeStamp - b.timeStamp);
-      
+
       setUserData(sortedData.reverse());
     } catch (error) {
       toast({
@@ -90,6 +108,19 @@ export default function Dashboard() {
     });
   }
 
+  async function handleRecharge() {
+    const value = Number(walletAmount) + Number(newAmount);
+    onClose();
+    setLoading(true);
+    updateDoc(doc(db, "Users", email), {
+      wallet: value,
+    }).then(() => {
+      setWalletAmount(value);
+      setNewAmount("");
+      setLoading(false);
+    });
+  }
+
   return (
     <Box
       w="100%"
@@ -107,8 +138,14 @@ export default function Dashboard() {
           Logout
         </Button>
       </HStack>
-      <Stack alignItems={'flex-end'} width={'100%'} px={4} mb={5}>
-      <WalletCard amount={walletAmount} />
+      <Stack alignItems={"flex-end"} width={"100%"} px={4} mb={5}>
+        <WalletCard
+          amount={walletAmount}
+          onClick={() => {
+            setNewAmount("");
+            onOpen();
+          }}
+        />
       </Stack>
       <VStack
         spacing={8}
@@ -120,7 +157,6 @@ export default function Dashboard() {
         textAlign="center"
         overflowX={"auto"}
       >
-
         <Heading size="lg" color="orange.300">
           Dashboard
         </Heading>
@@ -146,6 +182,37 @@ export default function Dashboard() {
         </Table>
       </VStack>
       {loading && <LoadingIndicator />}
+
+      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+        <ModalOverlay />
+
+        <ModalContent>
+          <ModalHeader>Recharge Wallet</ModalHeader>
+          <ModalBody>
+            <ModalCloseButton color={"black"} />
+            <Input
+              color={"black"}
+              type="number"
+              placeholder="Enter amount"
+              value={newAmount}
+              onChange={(e) => setNewAmount(e.target.value)}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={onClose} rounded={"sm"}>
+              Close
+            </Button>
+            <Button
+              colorScheme="teal"
+              ml={3}
+              onClick={() => handleRecharge()}
+              rounded={"sm"}
+            >
+              Save
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }

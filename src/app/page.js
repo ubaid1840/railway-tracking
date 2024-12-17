@@ -14,6 +14,7 @@ import moment from "moment";
 export default function Home() {
   const [picture, setPicture] = useState(null);
   const [cameraMode, setCameraMode] = useState(false);
+  const [cameras, setCameras] = useState([]);
   const webcamRef = useRef(null);
   const toast = useToast();
   const router = useRouter();
@@ -22,30 +23,33 @@ export default function Home() {
   const [selectedCamera, setSelectedCamera] = useState("")
   const inputRef = useRef()
 
-  // async function getConnectedCameras() {
-  //   try {
-  //     const devices = await navigator.mediaDevices.enumerateDevices();
-  //     console.log(devices)
-  //     const videoDevices = devices.filter((device) => device.kind === "videoinput");
-  //     return videoDevices;
-  //   } catch (error) {
-  //     console.error("Error accessing devices:", error);
-  //     return [];
-  //   }
-  // }
+  // Function to fetch connected cameras
+  async function getConnectedCameras() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((device) => device.kind === "videoinput");
+      // Map cameras to labels A-Z
+      return videoDevices.map((device, index) => ({
+        label: String.fromCharCode(65 + index), // A, B, C, ...
+        deviceId: device.deviceId,
+      }));
+    } catch (error) {
+      console.error("Error accessing devices:", error);
+      return [];
+    }
+  }
 
-  // useEffect(()=>{
-  //   getConnectedCameras().then((cameras) => {
-  //     cameras.forEach((camera, index) => {
-  //       console.log(`Camera ${index + 1}: ${camera.label || `Camera ${index + 1}`}`);
-  //     });
-  //   });
-  // },[])
+  // Fetch cameras on component mount
+  useEffect(() => {
+    getConnectedCameras().then((fetchedCameras) => {
+      setCameras(fetchedCameras);
+    });
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setLoggedIn(true)
+        setLoggedIn(true);
       } else {
         setLoading(false);
       }
@@ -84,38 +88,25 @@ export default function Home() {
   const handleSubmit = async () => {
 
     try {
-      let list = []
       const formData = new FormData();
-      formData.append('image', picture);
+      formData.append("image", picture);
+      formData.append("camera", selectedCamera);
+      let list = []
       let wallet = 0
 
       await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/verify`, formData)
         .then(async (response) => {
           if (response.data.username) {
-            await getDocs(query(collection(db, 'Data'), where('email', '==', response.data.username), limit(1), orderBy("timestamp", "desc")))
-              .then((snaphshot) => {
-                snaphshot.forEach((docs) => {
-                  list.push({ ...docs.data(), id: docs.id })
+            const userData = await getDoc(doc(db, "Users", response.data.username))
+            wallet = userData.data().wallet
+            if (wallet > parseFloat(process.env.NEXT_PUBLIC_CAMERA_A_B_FARE || "0") && wallet > parseFloat(process.env.NEXT_PUBLIC_CAMERA_A_C_FARE || "0") && wallet > parseFloat(process.env.NEXT_PUBLIC_CAMERA_B_C_FARE || "0")) {
+              await getDocs(query(collection(db, 'Data'), where('email', '==', response.data.username), limit(1), orderBy("timestamp", "desc")))
+                .then((snaphshot) => {
+                  snaphshot.forEach((docs) => {
+                    list.push({ ...docs.data(), id: docs.id })
+                  })
                 })
-              })
-            if (list.length == 0) {
-              await addDoc(collection(db, 'Data'), {
-                email: response.data.username,
-                timestamp: moment().valueOf(),
-                start: selectedCamera
-              })
-                .then(() => {
-                  toast({
-                    title: "Submitted.",
-                    description: "Image verified.",
-                    status: "success",
-                    duration: 5000,
-                    isClosable: true,
-                  });
-
-                })
-            } else {
-              if (list[0].end) {
+              if (list.length == 0) {
                 await addDoc(collection(db, 'Data'), {
                   email: response.data.username,
                   timestamp: moment().valueOf(),
@@ -132,40 +123,64 @@ export default function Home() {
 
                   })
               } else {
-                const fare = calculateFare(list[0].start, selectedCamera);
-                await updateDoc(doc(db, 'Data', list[0].id), {
-                  end: selectedCamera,
-                  fare: fare
-                }).then(async () => {
-                  await getDoc(doc(db, 'Users', response.data.username))
-                    .then(async (docs) => {
-                      wallet = docs.data().wallet
-                      wallet = wallet - fare
-                      await updateDoc(doc(db, 'Users', response.data.username), {
-                        wallet: wallet
-                      })
-                        .then(() => {
+                if (list[0].end) {
+                  await addDoc(collection(db, 'Data'), {
+                    email: response.data.username,
+                    timestamp: moment().valueOf(),
+                    start: selectedCamera
+                  })
+                    .then(() => {
+                      toast({
+                        title: "Submitted.",
+                        description: "Image verified.",
+                        status: "success",
+                        duration: 5000,
+                        isClosable: true,
+                      });
+
+                    })
+                } else {
+                  const fare = calculateFare(list[0].start, selectedCamera);
+                  await updateDoc(doc(db, 'Data', list[0].id), {
+                    end: selectedCamera,
+                    fare: fare
+                  }).then(async () => {
+                    wallet = wallet - fare
+                    await updateDoc(doc(db, 'Users', response.data.username), {
+                      wallet: wallet
+                    })
+                      .then(() => {
+                        toast({
+                          title: "Submitted.",
+                          description: "Image verified.",
+                          status: "success",
+                          duration: 5000,
+                          isClosable: true,
+                        });
+                        if (wallet < 10) {
                           toast({
-                            title: "Submitted.",
-                            description: "Image verified.",
-                            status: "success",
+                            title: "Low balance.",
+                            description: "Kindly recharge your account.",
+                            status: "error",
                             duration: 5000,
                             isClosable: true,
                           });
-                          if (wallet < 10) {
-                            toast({
-                              title: "Low balance.",
-                              description: "Kindly recharge your account.",
-                              status: "error",
-                              duration: 5000,
-                              isClosable: true,
-                            });
-                          }
-                        })
-                    })
-                })
+                        }
+                      })
+
+                  })
+                }
               }
+            } else {
+              toast({
+                title: "Insufficient balance.",
+                description: "Kindly recharge your account.",
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+              });
             }
+
 
           }
           if (response.data.message) {
